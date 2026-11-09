@@ -13,7 +13,7 @@ from langgraph.graph import END, START, StateGraph
 from .math_tools import TOOL_SPECS, run_tool
 
 MODEL = os.environ.get("ANTHROPIC_MODEL", "claude-sonnet-5-5")
-GROQ_MODEL = os.environ.get("GROQ_MODEL", "llama-3.3-70b-versatile")
+GROQ_MODEL = os.environ.get("GROQ_MODEL", "openai/gpt-oss-120b")
 PERSONA = ("Kamu Oyen, kucing oren gemuk yang comel, ceria dan menyokong, rakan belajar pelajar SPM Matematik Tambahan Malaysia. "
            "Bercakap Bahasa Melayu mudah (atau English jika diminta), sedikit lawak, tidak pernah mengejek kesilapan. Jangan reka fakta matematik: "
            "gunakan alat untuk mengesahkan.")
