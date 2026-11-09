@@ -1,16 +1,20 @@
 <!DOCTYPE html>
 <html lang="ms">
+
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>Oyen Math – An Agentic AI-Powered Gamified Personalized Learning Platform for SPM Additional Mathematics</title>
-  <meta name="description" content="Oyen Math – Learn. Play. Level Up! An Agentic AI-Powered Gamified Learning Platform for SPM Additional Mathematics starring Oyen the adorable orange cat." />
+  <title>Oyen Math – An Agentic AI-Powered Gamified Personalized Learning Platform for SPM Additional Mathematics
+  </title>
+  <meta name="description"
+    content="Oyen Math – Learn. Play. Level Up! An Agentic AI-Powered Gamified Learning Platform for SPM Additional Mathematics starring Oyen the adorable orange cat." />
   <meta name="theme-color" content="#FF8C24" />
 
   <!-- Preconnect and fonts -->
   <link rel="stylesheet" href="css/oyen-theme.css" />
   <link rel="stylesheet" href="css/oyen-fun.css" />
 </head>
+
 <body>
   <!-- Header Bar -->
   <header class="oyen-header">
@@ -23,6 +27,8 @@
         <p>Learn. Play. Level Up! · SPM AddMath</p>
       </div>
     </div>
+
+    <div class="demo-watermark">DEMO</div>
 
     <!-- Live Stats Bar (Hearts, XP, Fish Coins) -->
     <div class="stats-bar">
@@ -90,7 +96,9 @@
         <div id="sideOyenAvatar" class="oyen-bounce" style="margin:4px 0 10px;">
           <!-- Oyen SVG injected dynamically -->
         </div>
-        <div style="background:var(--light-orange);border:1px solid var(--border-color);border-radius:var(--radius-md);padding:10px 14px;font-size:13px;font-weight:600;color:var(--dark-text);line-height:1.4;position:relative;" id="sideOyenDialogue">
+        <div
+          style="background:var(--light-orange);border:1px solid var(--border-color);border-radius:var(--radius-md);padding:10px 14px;font-size:13px;font-weight:600;color:var(--dark-text);line-height:1.4;position:relative;"
+          id="sideOyenDialogue">
           "MEOWWWW! Jom kita takluk AddMath bersama Oyen! 🐱"
         </div>
       </div>
@@ -99,7 +107,9 @@
       <div class="card">
         <div class="card-title">
           <span>🧠 OTAK EJEN AI (LANGGRAPH)</span>
-          <span style="font-size:10px;background:var(--light-orange);color:var(--dark-orange);padding:2px 6px;border-radius:4px;">LIVE TRACE</span>
+          <span
+            style="font-size:10px;background:var(--light-orange);color:var(--dark-orange);padding:2px 6px;border-radius:4px;">LIVE
+            TRACE</span>
         </div>
         <div class="brain-trace-feed" id="agentBrainFeed">
           <span style="font-size:12px;color:var(--muted-text);">Memulakan sambungan sistem ejen...</span>
@@ -130,22 +140,29 @@
           <span style="font-size:48px;">🐱</span>
         </div>
         <h3 style="font-size:20px;font-weight:900;color:var(--dark-orange);">Akaun Pelajar Oyen Math</h3>
-        <p style="font-size:13px;color:var(--muted-text);">Simpan kemajuan, skor jantung, dan kedudukan papan pendahulu anda di Cloud Firestore.</p>
+        <p style="font-size:13px;color:var(--muted-text);">Simpan kemajuan, skor jantung, dan kedudukan papan pendahulu
+          anda di Cloud Firestore.</p>
       </div>
 
       <p id="authModeNote" style="font-size:12px;border-radius:10px;padding:8px 10px;margin-bottom:10px;"></p>
       <form id="authForm" style="display:flex;flex-direction:column;gap:12px;">
         <div>
-          <label style="font-size:12px;font-weight:700;color:var(--dark-text);display:block;margin-bottom:4px;">Nama Pelajar / Nickname</label>
-          <input type="text" id="authName" class="math-input" style="font-size:14px;padding:10px;text-align:left;" placeholder="cth: Aiman SPM 2026" />
+          <label style="font-size:12px;font-weight:700;color:var(--dark-text);display:block;margin-bottom:4px;">Nama
+            Pelajar / Nickname</label>
+          <input type="text" id="authName" class="math-input" style="font-size:14px;padding:10px;text-align:left;"
+            placeholder="cth: Aiman SPM 2026" />
         </div>
         <div>
-          <label style="font-size:12px;font-weight:700;color:var(--dark-text);display:block;margin-bottom:4px;">E-mel</label>
-          <input type="email" id="authEmail" class="math-input" style="font-size:14px;padding:10px;text-align:left;" placeholder="pelajar@sekolah.edu.my" required />
+          <label
+            style="font-size:12px;font-weight:700;color:var(--dark-text);display:block;margin-bottom:4px;">E-mel</label>
+          <input type="email" id="authEmail" class="math-input" style="font-size:14px;padding:10px;text-align:left;"
+            placeholder="pelajar@sekolah.edu.my" required />
         </div>
         <div>
-          <label style="font-size:12px;font-weight:700;color:var(--dark-text);display:block;margin-bottom:4px;">Kata Laluan</label>
-          <input type="password" id="authPassword" class="math-input" style="font-size:14px;padding:10px;text-align:left;" placeholder="••••••••" required />
+          <label style="font-size:12px;font-weight:700;color:var(--dark-text);display:block;margin-bottom:4px;">Kata
+            Laluan</label>
+          <input type="password" id="authPassword" class="math-input"
+            style="font-size:14px;padding:10px;text-align:left;" placeholder="••••••••" required />
         </div>
         <button type="submit" class="btn btn-primary" style="margin-top:6px;">
           Daftar / Log Masuk
@@ -180,5 +197,5 @@
   <script src="js/audio-fx.js"></script>
   <script src="js/app.js"></script>
 </body>
-</html>
 
+</html>
