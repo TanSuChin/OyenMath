@@ -71,8 +71,8 @@ body {
 
 .demo-watermark {
   position: fixed;
-  top: 15px;
-  right: 15px;
+  top: 20px;
+  right: 300px;
   z-index: 99999;
   padding: 7px 16px;
   background: #ff8c24;
