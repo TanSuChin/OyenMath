@@ -256,6 +256,14 @@ const OyenApp = (() => {
   // VIEW: ADVENTURE MAP
   // ==========================================
   function renderAdventureMap(container) {
+    OyenHomeMap.render(container, {
+      lang: OyenI18n.getLang(),
+      mastery: graph.state.mastery,
+      start: startChapter
+    });
+  }
+
+  function renderAdventureMapLegacy(container) {
     const lang = OyenI18n.getLang();
     const dif = OyenCurriculum.getTopic("dif");
     const integ = OyenCurriculum.getTopic("integ");
@@ -428,12 +436,14 @@ const OyenApp = (() => {
             <button class="btn btn-primary" id="btnSubmitAnswer" onclick="OyenApp.submitAnswer()">
               ${lang === "ms" ? "Semak Jawapan" : "Check Answer"}
             </button>
-            <button class="btn btn-alt" onclick="OyenApp.switchView('detective')">
-              🔍 ${lang === "ms" ? "Semak Jalan Kerja Tulisan Tangan" : "Inspect Working"}
+            <button class="btn btn-secondary" onclick="document.getElementById('answerSheetFile').click()">
+              📷 ${lang === "ms" ? "Imbas Kertas Jawapan" : "Scan Answer Sheet"}
             </button>
+            <input type="file" id="answerSheetFile" accept="image/*" capture="environment" style="display:none" onchange="OyenApp.scanAnswerSheet(event)" />
           </div>
         </div>
 
+        <div id="ocrPanel" class="ocr-panel"></div>
         <div id="answerFeedbackContainer"></div>
       </div>
     `;
@@ -445,6 +455,27 @@ const OyenApp = (() => {
         if (e.key === "Enter") submitAnswer();
       });
     }
+  }
+
+  async function scanAnswerSheet(e) {
+    const f = e.target.files && e.target.files[0];
+    const panel = document.getElementById("ocrPanel");
+    if (!f || !panel) return;
+    const q = graph.state.currentQuestion;
+    panel.innerHTML = OyenOCR.scanningHTML(f);
+    renderOyenSideAvatar("detective");
+    graph.logDecision("DET", "Ejen OCR menerima gambar kertas jawapan. Memulakan pembacaan tulisan tangan.");
+    const r = await OyenOCR.read(f, q ? String(q.q).replace(/<[^>]+>/g, "") : "");
+    graph.logDecision("DET", r.error ? "OCR gagal: " + r.error : `OCR (${r.engine}) membaca ${r.lines.length} baris. Jawapan akhir dicadangkan: “${r.finalAnswer}”. Menunggu pengesahan pelajar sebelum Math Solver menyemak.`);
+    panel.innerHTML = OyenOCR.resultHTML(r, { submit: true });
+    renderOyenSideAvatar(r.error ? "sad" : "thinking");
+  }
+
+  function submitScanned() {
+    const el = document.getElementById("ocrFinal");
+    if (!el || !el.value.trim()) return;
+    graph.logDecision("O", "Jawapan daripada imbasan OCR dihantar kepada Penyelesai Matematik untuk pengesahan deterministik.");
+    graph.submitAnswer(el.value.trim());
   }
 
   function submitAnswer() {
@@ -604,9 +635,13 @@ const OyenApp = (() => {
     renderInspectionResults(reportEl, sample, inspection);
   }
 
-  function analyzeCurrentCanvas() {
-    const sample = OyenDetectiveScanner.sampleCalculations[0];
-    loadCalculationSample(0);
+  async function analyzeCurrentCanvas() {
+    const area = document.getElementById("detectiveReportArea");
+    if (!area || !canvasController) return;
+    area.innerHTML = OyenOCR.scanningHTML(null);
+    const r = await OyenOCR.readDataURL(canvasController.canvas.toDataURL("image/jpeg", 0.9), "");
+    area.innerHTML = OyenOCR.resultHTML(r, { submit: false });
+    renderOyenSideAvatar(r.error ? "sad" : "detective");
   }
 
   function renderInspectionResults(container, sample, inspection) {
@@ -904,6 +939,8 @@ const OyenApp = (() => {
   return {
     init,
     switchView,
+    scanAnswerSheet,
+    submitScanned,
     startChapter,
     submitAnswer,
     advanceStep,

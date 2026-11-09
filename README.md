@@ -189,3 +189,13 @@ window.firebaseConfig = {
 
 Oyen Math is created for Malaysian SPM students and educators.  
 **"Learn. Play. Level Up!"** 🐱🧡
+
+---
+
+## 🆕 v2 update: fun layer, chubby Oyen, real OCR
+
+- **Home:** zig-zag column of topic circles; tap one and its sub-topic circles pop out below (`js/home-map.js`). Integration unlocks after 40% Differentiation mastery.
+- **Chubby Oyen:** new round orange tabby with blink, breathing and tail-wag animation (`js/oyen-fat.js`), used for all 8 poses.
+- **Animated story:** each topic opens with a short animated chapter (`js/story.js`); replay with the 🎬 circle.
+- **Answer-sheet OCR:** "📷 Scan Answer Sheet" in every question, plus the Detective tab. The photo goes to `POST /api/ocr` (Claude vision, needs `ANTHROPIC_API_KEY` in `.env`, see `.env.example`). Without a key it falls back to in-browser Tesseract.js (weak on handwriting). The student confirms the read answer, then the deterministic Math Solver marks it through the agent graph.
+- Run: `python3 server.py` (or `PORT=9000 python3 server.py`).
