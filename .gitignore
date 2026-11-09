@@ -1,0 +1,7 @@
+.oyen_data
+.pytest_cache
+/tests
+/__pycache__
+/agents
+.env
+
