@@ -34,10 +34,10 @@ class OyenAgenticGraph {
       teachingMethodsTried: [],
       currentTeachingMethod: "worked",
       mastery: Object.assign({
-        ind: 0.2,
-        dif: 0.1,
-        integ: 0.0,
-        quad: 0.1
+        ind: 0,
+        dif: 0,
+        integ: 0,
+        quad: 0
       }, initialState.mastery || {}),
       currentQuestion: null,
       lastAnswerFeedback: null,

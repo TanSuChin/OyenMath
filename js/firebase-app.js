@@ -219,6 +219,20 @@ const OyenFirebase = (() => {
    * Fetch Leaderboard (combines community members + current active user)
    */
   async function getLeaderboard(currentUserPoints = 0, currentAvatar = "happy") {
+    // Cloud mode: real students from Firestore (top 20) plus publish this user's own row.
+    if (isLiveFirebase && window.firebase && window.firebase.firestore && currentUser && !currentUser.isGuest) {
+      try {
+        const db = firebase.firestore();
+        await db.collection("oyen_leaderboard").doc(currentUser.uid).set({
+          name: currentUser.displayName || "Pelajar", points: Math.max(0, Math.floor(currentUserPoints)),
+          fishCoins: Math.floor(currentUserPoints / 30) + 10, avatar: currentAvatar, updatedAt: Date.now()
+        }, { merge: true });
+        const snap = await db.collection("oyen_leaderboard").orderBy("points", "desc").limit(20).get();
+        const rows = [];
+        snap.forEach(d => { const v = d.data(); rows.push({ rank: rows.length + 1, name: v.name, school: "SPM Candidate", points: v.points, fishCoins: v.fishCoins || 0, avatar: v.avatar || "happy", isUser: d.id === currentUser.uid }); });
+        if (rows.length) return rows;
+      } catch (e) { console.warn("Leaderboard cloud read failed, showing demo list:", e); }
+    }
     const list = [...defaultLeaderboard];
 
     const userName = currentUser ? currentUser.displayName : "Anda (You)";
@@ -253,7 +267,8 @@ const OyenFirebase = (() => {
     saveStudentProfile,
     loadStudentProfile,
     getLeaderboard,
-    isLiveFirebase: () => isLiveFirebase
+    isLiveFirebase: () => isLiveFirebase,
+    mode: () => (isLiveFirebase ? "cloud" : "local")
   };
 })();
 

@@ -66,6 +66,8 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         super().__init__(*args, directory=DIRECTORY, **kwargs)
 
     def do_POST(self):
+        if self.path == "/api/agent":
+            return self._agent()
         if self.path != "/api/ocr":
             self.send_error(404); return
         n = int(self.headers.get("Content-Length", 0))
@@ -80,6 +82,22 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         payload = json.dumps(out).encode()
         self.send_response(code)
         self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(payload)))
+        self.end_headers()
+        self.wfile.write(payload)
+
+    def _agent(self):
+        n = int(self.headers.get("Content-Length", 0))
+        try:
+            from agents.graph import run_agent
+            code, out = 200, run_agent(json.loads(self.rfile.read(min(n, 200000))))
+        except ImportError as e:
+            code, out = 501, {"error": "Pasang kebergantungan: pip install -r requirements.txt (%s)" % e}
+        except Exception as e:
+            code, out = 500, {"error": "Ejen gagal: %s" % e}
+        payload = json.dumps(out, ensure_ascii=False).encode()
+        self.send_response(code)
+        self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(payload)))
         self.end_headers()
         self.wfile.write(payload)

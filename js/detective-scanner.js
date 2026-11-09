@@ -16,6 +16,8 @@ const OyenDetectiveScanner = (() => {
       titleEn: "Sample 1: Differentiation (Constant Error)",
       topic: "dif",
       equation: "y = 4x^3 - 6x + 9",
+      question: "Bezakan y = 4x³ − 6x + 9 terhadap x.",
+      questionEn: "Differentiate y = 4x³ − 6x + 9 with respect to x.",
       lines: [
         { text: "Langkah 1: y = 4x³ − 6x + 9", valid: true },
         { text: "Langkah 2: dy/dx = 4(3)x² − 6 + 9", valid: false, error: "Ralat pada sebutan pemalar: Pemalar 9 tidak mengandungi pemboleh ubah x, maka ia dibezakan menjadi 0, bukan kekal 9!" },
@@ -29,6 +31,8 @@ const OyenDetectiveScanner = (() => {
       titleEn: "Sample 2: Differentiation (Forgot Power − 1)",
       topic: "dif",
       equation: "f(x) = 5x^4 + 3x^2",
+      question: "Diberi f(x) = 5x⁴ + 3x². Cari f′(x).",
+      questionEn: "Given f(x) = 5x⁴ + 3x². Find f′(x).",
       lines: [
         { text: "Langkah 1: f(x) = 5x⁴ + 3x²", valid: true },
         { text: "Langkah 2: f′(x) = 20x⁴ + 6x²", valid: false, error: "Petua kuasa tidak selesai! Pekali sudah didarab dengan kuasa asal, tetapi kuasa x mestilah ditolak 1: 5(4)x³ + 3(2)x¹." },
@@ -42,6 +46,8 @@ const OyenDetectiveScanner = (() => {
       titleEn: "Sample 3: Integration (Missing + C)",
       topic: "integ",
       equation: "∫ (6x^2 - 4x + 3) dx",
+      question: "Cari ∫ (6x² − 4x + 3) dx.",
+      questionEn: "Find ∫ (6x² − 4x + 3) dx.",
       lines: [
         { text: "Langkah 1: ∫ (6x² − 4x + 3) dx", valid: true },
         { text: "Langkah 2: = 6(x³/3) − 4(x²/2) + 3x", valid: true },
@@ -55,6 +61,8 @@ const OyenDetectiveScanner = (() => {
       titleEn: "Sample 4: Perfect SPM Working (Full Marks)",
       topic: "dif",
       equation: "y = (3x - 2)^4",
+      question: "Bezakan y = (3x − 2)⁴ terhadap x.",
+      questionEn: "Differentiate y = (3x − 2)⁴ with respect to x.",
       lines: [
         { text: "Langkah 1: Katakan u = 3x − 2, maka y = u⁴", valid: true },
         { text: "Langkah 2: du/dx = 3 dan dy/du = 4u³", valid: true },

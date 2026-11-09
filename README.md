@@ -199,3 +199,10 @@ Oyen Math is created for Malaysian SPM students and educators.
 - **Animated story:** each topic opens with a short animated chapter (`js/story.js`); replay with the 🎬 circle.
 - **Answer-sheet OCR:** "📷 Scan Answer Sheet" in every question, plus the Detective tab. The photo goes to `POST /api/ocr` (Claude vision, needs `ANTHROPIC_API_KEY` in `.env`, see `.env.example`). Without a key it falls back to in-browser Tesseract.js (weak on handwriting). The student confirms the read answer, then the deterministic Math Solver marks it through the agent graph.
 - Run: `python3 server.py` (or `PORT=9000 python3 server.py`).
+
+## v3: LLM agents, linked detective, prerequisite-first map
+
+- **Real LangGraph** (`agents/graph.py`): diagnostic (Claude + SymPy tool-calling) -> orchestrator -> prerequisite/teaching/challenge. Falls back to rules without an API key. Served at `POST /api/agent`.
+- **Detective Oyen** now links every upload to one explicit question (current / generated / SPM sample) and verifies the final answer against it.
+- **Map order:** P1 Indices, P2 Quadratics, then Level 1 Differentiation (needs 40% in both) and Level 2 Integration (needs 40% in Differentiation). New students start at 0%.
+- **Firebase:** config in `js/firebase-config.js`, rules in `firestore.rules`, real Firestore leaderboard. See `SETUP.md`.

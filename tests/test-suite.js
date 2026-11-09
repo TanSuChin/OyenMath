@@ -186,6 +186,55 @@ test("OyenFirebase handles user auth and state synchronization", async () => {
   assert.ok(board.length >= 6, "Leaderboard populated with community students");
 });
 
+// 8. Chubby Oyen mascot
+test("OyenFat renders all 8 poses with animation hooks", () => {
+  const Fat = require("../js/oyen-fat.js");
+  assert.strictEqual(Fat.poses.length, 8);
+  Fat.poses.forEach(p => {
+    const svg = Fat.render(p, 100);
+    assert.ok(svg.includes("<svg") && svg.includes("oy-body") && svg.includes('data-pose="' + p + '"'), p);
+  });
+  assert.ok(OyenCharacter.render("happy", 80).includes("oy-tail"), "OyenCharacter.render is patched to chubby Oyen");
+});
+
+// 9. OCR normalisation
+test("OyenOCR normalises handwriting text to checkable answers", () => {
+  const OCR = require("../js/ocr.js");
+  assert.strictEqual(OCR.toPlain("f′(x) = 6x² + 5"), "6x^2 + 5");
+  assert.strictEqual(OCR.pickFinal([{ text: "y = 3x² + 5x − 2" }, { text: "dy/dx = 6x + 5" }]), "6x + 5");
+  assert.strictEqual(OCR.pickFinal([]), "");
+  const out = OyenMathEngine.checkAnswer(OCR.toPlain("f′(x) = 6x + 5"), { f: x => 6 * x + 5, w: [], t: "6x+5", level: 1 });
+  assert.ok(out.ok, "OCR-normalised answer passes the Math Solver");
+});
+
+// 10. Home map order and locking
+test("Home map lists prerequisites first and locks Level 1/2 until prerequisites are met", () => {
+  const HM = require("../js/home-map.js");
+  assert.deepStrictEqual(HM.order, ["ind", "quad", "dif", "integ"]);
+  assert.deepStrictEqual(HM.missing("ind", {}), [], "P1 open");
+  assert.deepStrictEqual(HM.missing("quad", {}), [], "P2 open");
+  assert.deepStrictEqual(HM.missing("dif", {}), ["ind", "quad"]);
+  assert.deepStrictEqual(HM.missing("dif", { ind: 0.6 }), ["quad"]);
+  assert.deepStrictEqual(HM.missing("dif", { ind: 0.6, quad: 0.4 }), []);
+  assert.deepStrictEqual(HM.missing("integ", { ind: 1, quad: 1 }), ["dif"]);
+  assert.deepStrictEqual(HM.missing("dif", { dif: 0.3 }), [], "existing progress is never locked out");
+});
+
+// 11. Stories
+test("Every topic has a 4-scene bilingual story", () => {
+  global.OyenCurriculum = OyenCurriculum;
+  const src = require("fs").readFileSync(__dirname + "/../js/story.js", "utf8");
+  const Story = new Function("window", "OyenCurriculum", "OyenI18n", "OyenCharacter", src + ";return OyenStory;")(global, OyenCurriculum, OyenI18n, OyenCharacter);
+  assert.deepStrictEqual(Story.topics.sort(), ["dif", "ind", "integ", "quad"]);
+});
+
+// 12. Detective samples always carry the question they answer
+test("Every detective sample states its question (BM + EN)", () => {
+  OyenDetectiveScanner.sampleCalculations.forEach(sm => {
+    assert.ok(sm.question && sm.questionEn, sm.id + " has a question");
+  });
+});
+
 console.log("==========================================");
 console.log(`🎉 ALL ${passedTests} TESTS PASSED SUCCESSFULLY!`);
 console.log("==========================================");

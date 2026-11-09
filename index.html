@@ -133,6 +133,7 @@
         <p style="font-size:13px;color:var(--muted-text);">Simpan kemajuan, skor jantung, dan kedudukan papan pendahulu anda di Cloud Firestore.</p>
       </div>
 
+      <p id="authModeNote" style="font-size:12px;border-radius:10px;padding:8px 10px;margin-bottom:10px;"></p>
       <form id="authForm" style="display:flex;flex-direction:column;gap:12px;">
         <div>
           <label style="font-size:12px;font-weight:700;color:var(--dark-text);display:block;margin-bottom:4px;">Nama Pelajar / Nickname</label>
@@ -167,6 +168,14 @@
   <script src="js/ocr.js"></script>
   <script src="js/story.js"></script>
   <script src="js/home-map.js"></script>
+  <script src="js/firebase-config.js"></script>
+  <script>
+    // Load the Firebase SDK only when a config is provided (keeps local mode fast and offline-friendly)
+    if (window.firebaseConfig) {
+      ["app", "auth", "firestore"].forEach(m => document.write('<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-' + m + '-compat.js"><\/script>'));
+    }
+  </script>
+  <script src="js/agent-client.js"></script>
   <script src="js/firebase-app.js"></script>
   <script src="js/audio-fx.js"></script>
   <script src="js/app.js"></script>

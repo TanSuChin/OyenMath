@@ -23,7 +23,17 @@ const OyenApp = (() => {
     // Try restoring saved progress from Firestore / localStorage
     OyenFirebase.loadStudentProfile().then(data => {
       if (data) {
-        if (data.mastery) graph.state.mastery = Object.assign(graph.state.mastery, data.mastery);
+        if (data.mastery) {
+          // Migration v2: older versions seeded fake starting mastery (ind 0.2 / dif 0.1 / quad 0.1). Reset untouched seeds to 0.
+          try {
+            if (localStorage.getItem("oyen_schema") !== "2") {
+              const seeds = { ind: 0.2, dif: 0.1, quad: 0.1 };
+              Object.keys(seeds).forEach(k => { if (data.mastery[k] === seeds[k]) data.mastery[k] = 0; });
+              localStorage.setItem("oyen_schema", "2");
+            }
+          } catch (e) { /* storage unavailable */ }
+          graph.state.mastery = Object.assign(graph.state.mastery, data.mastery);
+        }
         if (data.hearts !== undefined) graph.state.hearts = data.hearts;
         if (data.normalPoints) graph.state.normalPoints = data.normalPoints;
         if (data.recoveryPoints) graph.state.recoveryPoints = data.recoveryPoints;
@@ -85,7 +95,16 @@ const OyenApp = (() => {
     const authModal = document.getElementById("authModal");
     const closeAuthBtn = document.getElementById("closeAuthModal");
     if (authBtn && authModal) {
-      authBtn.addEventListener("click", () => authModal.classList.add("open"));
+      authBtn.addEventListener("click", () => {
+        const note = document.getElementById("authModeNote");
+        if (note) {
+          const cloud = OyenFirebase.mode() === "cloud";
+          note.style.background = cloud ? "#e4f7ee" : "#fff3cd";
+          note.textContent = cloud ? "☁️ Mod awan: akaun, kemajuan dan papan pendahulu disimpan dalam Firebase."
+            : "💾 Mod tempatan: data hanya dalam pelayar ini, kata laluan TIDAK disahkan dan papan pendahulu ialah demo. Tetapkan js/firebase-config.js untuk mod awan.";
+        }
+        authModal.classList.add("open");
+      });
     }
     if (closeAuthBtn && authModal) {
       closeAuthBtn.addEventListener("click", () => authModal.classList.remove("open"));
@@ -471,6 +490,35 @@ const OyenApp = (() => {
     renderOyenSideAvatar(r.error ? "sad" : "thinking");
   }
 
+  async function askCoach(state, data) {
+    const fb = document.getElementById("answerFeedbackContainer");
+    const q = state.currentQuestion;
+    if (!fb || !q) return;
+    const box = document.createElement("div");
+    box.className = "coach-box";
+    box.innerHTML = `${OyenCharacter.render("thinking", 44)}<span>🧠 Ejen AI (LangGraph) sedang menganalisis kesilapan anda...</span>`;
+    fb.appendChild(box);
+    const scores = [...state.diagnosticScores, ...state.challengeScores];
+    const inp = document.getElementById("studentMathInput");
+    const out = await OyenAgentAPI.coach({
+      topic: state.currentTopicId, level: q.level, lang: OyenI18n.getLang(),
+      question: String(q.q).replace(/<sup>(.*?)<\/sup>/g, "^$1").replace(/<[^>]+>/g, ""),
+      student_answer: inp ? inp.value : "", correct_answer: String(q.t).replace(/<sup>(.*?)<\/sup>/g, "^$1").replace(/<[^>]+>/g, ""),
+      result_msg: String((data.result && data.result.msg) || "").replace(/<[^>]+>/g, ""),
+      error_tags: state.errorTags, recent: scores.slice(-5), mastery: state.mastery
+    });
+    if (out.error) {
+      box.innerHTML = `<span class="m">ℹ️ Pembimbing AI tidak aktif: ${out.error}</span>`;
+      return;
+    }
+    (out.trace || []).forEach(t => graph.logDecision("O", t));
+    const goPrereq = out.action === "prerequisite" && out.next_topic;
+    box.innerHTML = `${OyenCharacter.render(goPrereq ? "determined" : "happy", 44)}<div>
+      <div class="coach-tag">🧠 ${out.llm ? "LangGraph + Claude (alat SymPy)" : "LangGraph (mod peraturan, tiada kunci API)"} · tindakan: <b>${out.action}</b>${out.diagnosis && out.diagnosis.misconception ? ` · salah faham: <b>${out.diagnosis.misconception}</b> (${out.diagnosis.confidence})` : ""}</div>
+      <div>${String(out.message).replace(/</g, "&lt;")}</div>
+      ${goPrereq ? `<button class="btn btn-primary btn-sm" onclick="OyenApp.startChapter('${out.next_topic}')">Ke topik prasyarat ➜</button>` : ""}</div>`;
+  }
+
   function submitScanned() {
     const el = document.getElementById("ocrFinal");
     if (!el || !el.value.trim()) return;
@@ -530,154 +578,175 @@ const OyenApp = (() => {
   // ==========================================
   // VIEW: DETECTIVE OYEN HANDWRITING SCANNER
   // ==========================================
+  // Detective: every handwritten working is linked to ONE explicit question.
+  let detQ = null;
+  const plainQ = (t) => String(t || "").replace(/<sup>(.*?)<\/sup>/g, "^$1").replace(/<[^>]+>/g, "");
+
+  function setDetectiveQuestion(def, source) {
+    const lang = OyenI18n.getLang();
+    detQ = { def, source, html: (lang === "en" && def.qEn) ? def.qEn : def.q, plain: plainQ(def.q) };
+  }
+
+  function ensureDetectiveQuestion() {
+    if (detQ) return;
+    const cur = graph.state.currentQuestion;
+    if (cur) setDetectiveQuestion(cur, "current");
+    else setDetectiveQuestion(Object.assign(OyenCurriculum.getTopic("dif").gen(1), { level: 1 }), "generated");
+  }
+
+  function newDetectiveQuestion() {
+    const topic = document.getElementById("detTopic").value;
+    const level = parseInt(document.getElementById("detLevel").value, 10);
+    const def = OyenCurriculum.getTopic(topic).gen(level);
+    def.level = level;
+    setDetectiveQuestion(def, "generated");
+    graph.logDecision("DET", `Soalan semakan jalan kerja dijana: ${OyenCurriculum.getTopic(topic).name}, Tahap ${level}.`);
+    renderDetectiveWorkbench(document.getElementById("mainAppStage"));
+  }
+
+  function useCurrentQuestion() {
+    if (graph.state.currentQuestion) setDetectiveQuestion(graph.state.currentQuestion, "current");
+    renderDetectiveWorkbench(document.getElementById("mainAppStage"));
+  }
+
   function renderDetectiveWorkbench(container) {
+    ensureDetectiveQuestion();
     const lang = OyenI18n.getLang();
     const samples = OyenDetectiveScanner.sampleCalculations;
+    const hasCurrent = !!graph.state.currentQuestion;
+    const srcLabel = { current: lang === "ms" ? "soalan semasa anda" : "your current question", generated: lang === "ms" ? "soalan dijana" : "generated question", sample: lang === "ms" ? "contoh SPM" : "SPM sample" }[detQ.source];
 
     container.innerHTML = `
       <div>
         <div style="display:flex;align-items:center;gap:14px;margin-bottom:14px;">
-          <div style="width:54px;height:54px;">
-            ${OyenCharacter.render("detective", 54)}
-          </div>
+          <div style="width:54px;height:54px;">${OyenCharacter.render("detective", 54)}</div>
           <div>
-            <h3 style="font-size:20px;font-weight:900;color:var(--dark-orange);">
-              ${OyenI18n.t("detectiveTitle")}
-            </h3>
-            <p style="font-size:13px;color:var(--muted-text);">
-              ${OyenI18n.t("detectiveSubtitle")}
-            </p>
+            <h3 style="font-size:20px;font-weight:900;color:var(--dark-orange);">${OyenI18n.t("detectiveTitle")}</h3>
+            <p style="font-size:13px;color:var(--muted-text);">${OyenI18n.t("detectiveSubtitle")}</p>
           </div>
+        </div>
+
+        <div class="det-q">
+          <div class="det-q-top">📌 ${lang === "ms" ? "SOALAN YANG DISEMAK" : "QUESTION BEING CHECKED"} <span>(${srcLabel})</span></div>
+          <div class="math-q">${detQ.html}</div>
+          <div class="det-pick">
+            <select id="detTopic" class="math-input" style="width:auto;font-size:13px;padding:6px;">
+              ${["ind", "quad", "dif", "integ"].map(t => `<option value="${t}">${OyenCurriculum.getTopic(t).name}</option>`).join("")}
+            </select>
+            <select id="detLevel" class="math-input" style="width:auto;font-size:13px;padding:6px;">
+              <option value="1">Tahap 1</option><option value="2">Tahap 2</option><option value="3">Tahap 3</option>
+            </select>
+            <button class="btn btn-secondary btn-sm" onclick="OyenApp.newDetectiveQuestion()">🎲 ${lang === "ms" ? "Soalan baharu" : "New question"}</button>
+            ${hasCurrent ? `<button class="btn btn-alt btn-sm" onclick="OyenApp.useCurrentQuestion()">📍 ${lang === "ms" ? "Guna soalan semasa" : "Use current question"}</button>` : ""}
+          </div>
+          <div class="m" style="font-size:12px;">${lang === "ms" ? "Tulis jalan kerja untuk soalan ini di atas kertas, ambil gambar, kemudian muat naik. Detektif Oyen membaca, menyemak setiap baris dan mengesahkan jawapan akhir terhadap soalan ini." : "Work this question out on paper, photograph it, then upload. Detective Oyen reads it, checks each line and verifies the final answer against this question."}</div>
         </div>
 
         <div class="detective-workbench">
-          <!-- Left: Drawing Canvas / Image Upload -->
           <div class="canvas-container">
             <div style="font-size:12px;font-weight:700;color:var(--dark-text);width:100%;display:flex;justify-content:space-between;align-items:center;">
-              <span>📝 ${lang === "ms" ? "Kertas Conteng Tulisan Tangan" : "Handwritten Scratchpad"}</span>
-              <button class="btn btn-alt btn-sm" onclick="OyenApp.clearCanvas()">
-                ${lang === "ms" ? "Padam" : "Clear"}
-              </button>
+              <span>📝 ${lang === "ms" ? "Jalan kerja untuk soalan di atas" : "Working for the question above"}</span>
+              <button class="btn btn-alt btn-sm" onclick="OyenApp.clearCanvas()">${lang === "ms" ? "Padam" : "Clear"}</button>
             </div>
-            
             <canvas id="oyenScratchpad" width="420" height="260"></canvas>
-            
             <div style="width:100%;display:flex;gap:8px;align-items:center;margin-top:6px;">
               <input type="file" id="handwrittenUpload" accept="image/*" style="display:none;" onchange="OyenApp.handleImageUpload(event)" />
-              <button class="btn btn-secondary btn-sm" style="flex:1;" onclick="document.getElementById('handwrittenUpload').click()">
-                📷 ${lang === "ms" ? "Muat Naik Gambar Kertas" : "Upload Notebook Photo"}
-              </button>
-              <button class="btn btn-primary btn-sm" style="flex:1;" onclick="OyenApp.analyzeCurrentCanvas()">
-                🔎 ${lang === "ms" ? "Siasat Sekarang" : "Investigate Now"}
-              </button>
+              <button class="btn btn-secondary btn-sm" style="flex:1;" onclick="document.getElementById('handwrittenUpload').click()">📷 ${lang === "ms" ? "Muat Naik Gambar Kertas" : "Upload Notebook Photo"}</button>
+              <button class="btn btn-primary btn-sm" style="flex:1;" onclick="OyenApp.analyzeCurrentCanvas()">🔎 ${lang === "ms" ? "Siasat Lukisan" : "Check Drawing"}</button>
             </div>
           </div>
 
-          <!-- Right: Preloaded Test Samples & Inspection Results -->
           <div>
-            <div style="font-size:13px;font-weight:800;color:var(--dark-orange);text-transform:uppercase;margin-bottom:8px;">
-              ${lang === "ms" ? "Contoh Jalan Kerja SPM Terpilih" : "Curated SPM Working Samples"}
-            </div>
+            <div style="font-size:13px;font-weight:800;color:var(--dark-orange);text-transform:uppercase;margin-bottom:8px;">${lang === "ms" ? "Contoh Soalan & Jalan Kerja SPM" : "SPM Sample Questions & Working"}</div>
             <div class="sample-selector">
-              ${samples.map((s, idx) => `
+              ${samples.map((sm, idx) => `
                 <button class="sample-btn" onclick="OyenApp.loadCalculationSample(${idx})">
-                  <b>${lang === "ms" ? s.title : s.titleEn}</b>
-                  <div style="font-size:11px;color:var(--muted-text);margin-top:2px;">${s.equation}</div>
-                </button>
-              `).join("")}
+                  <b>${lang === "ms" ? sm.title : sm.titleEn}</b>
+                  <div style="font-size:12px;margin-top:3px;">${lang === "ms" ? sm.question : sm.questionEn}</div>
+                </button>`).join("")}
             </div>
-
-            <!-- Inspection Report Box -->
             <div id="detectiveReportArea" style="margin-top:16px;"></div>
           </div>
         </div>
-      </div>
-    `;
+      </div>`;
 
-    // Initialize drawing canvas
-    setTimeout(() => {
-      canvasController = OyenDetectiveScanner.initDrawingCanvas("oyenScratchpad");
-    }, 50);
+    setTimeout(() => { canvasController = OyenDetectiveScanner.initDrawingCanvas("oyenScratchpad"); }, 50);
   }
 
   function clearCanvas() {
     if (canvasController) canvasController.clear();
   }
 
+  function verdictFor(r) {
+    if (!detQ || !detQ.def || !detQ.def.f || !r.finalAnswer) return "";
+    const lang = OyenI18n.getLang();
+    const v = OyenMathEngine.checkAnswer(r.finalAnswer, detQ.def);
+    if (v.bad) return "";
+    graph.logDecision("M", `Penyelesai Matematik menyemak jawapan akhir tulisan tangan “${r.finalAnswer}” terhadap soalan: ${v.ok ? "TEPAT ✔" : "SALAH ✘"}.`);
+    return v.ok
+      ? `<div class="ocr-verdict ok">✔ ${lang === "ms" ? "Jawapan akhir anda TEPAT untuk soalan ini!" : "Your final answer is CORRECT for this question!"}</div>`
+      : `<div class="ocr-verdict no">✘ ${lang === "ms" ? "Jawapan akhir belum tepat." : "Final answer is not correct yet."} ${v.msg || ""}<br>${lang === "ms" ? "Jawapan betul" : "Correct answer"}: <b>${detQ.def.t}</b></div>`;
+  }
+
+  async function runDetectiveOCR(sourceFile, dataUrl) {
+    const area = document.getElementById("detectiveReportArea");
+    if (!area) return;
+    area.innerHTML = OyenOCR.scanningHTML(sourceFile);
+    renderOyenSideAvatar("detective");
+    graph.logDecision("DET", `Memulakan OCR jalan kerja untuk soalan: ${detQ.plain}`);
+    const r = sourceFile ? await OyenOCR.read(sourceFile, detQ.plain) : await OyenOCR.readDataURL(dataUrl, detQ.plain);
+    graph.logDecision("DET", r.error ? "OCR gagal: " + r.error : `OCR (${r.engine}) membaca ${r.lines.length} baris.`);
+    area.innerHTML = OyenOCR.resultHTML(r, { submit: false, question: detQ.html, verdict: verdictFor(r), retryId: "handwrittenUpload" });
+    renderOyenSideAvatar(r.error ? "sad" : "detective");
+  }
+
   function handleImageUpload(e) {
     const file = e.target.files && e.target.files[0];
-    if (!file) return;
+    if (file) runDetectiveOCR(file);
+  }
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const img = new Image();
-      img.onload = () => {
-        if (canvasController) {
-          canvasController.clear();
-          canvasController.ctx.drawImage(img, 0, 0, canvasController.canvas.width, canvasController.canvas.height);
-          // Run inspection
-          analyzeCurrentCanvas();
-        }
-      };
-      img.src = event.target.result;
-    };
-    reader.readAsDataURL(file);
+  function analyzeCurrentCanvas() {
+    if (canvasController) runDetectiveOCR(null, canvasController.canvas.toDataURL("image/jpeg", 0.9));
   }
 
   function loadCalculationSample(index) {
     const sample = OyenDetectiveScanner.sampleCalculations[index];
-    if (!sample) return;
-
     const reportEl = document.getElementById("detectiveReportArea");
-    if (!reportEl) return;
-
+    if (!sample || !reportEl) return;
+    const lang = OyenI18n.getLang();
+    detQ = { def: null, source: "sample", html: lang === "en" ? sample.questionEn : sample.question, plain: plainQ(sample.question) };
+    const box = document.querySelector(".det-q .math-q");
+    if (box) box.innerHTML = detQ.html;
+    const top = document.querySelector(".det-q-top span");
+    if (top) top.textContent = "(" + (lang === "ms" ? "contoh SPM" : "SPM sample") + ")";
     const inspection = OyenDetectiveScanner.inspectCalculation(sample.lines, sample.topic);
     renderInspectionResults(reportEl, sample, inspection);
-  }
-
-  async function analyzeCurrentCanvas() {
-    const area = document.getElementById("detectiveReportArea");
-    if (!area || !canvasController) return;
-    area.innerHTML = OyenOCR.scanningHTML(null);
-    const r = await OyenOCR.readDataURL(canvasController.canvas.toDataURL("image/jpeg", 0.9), "");
-    area.innerHTML = OyenOCR.resultHTML(r, { submit: false });
-    renderOyenSideAvatar(r.error ? "sad" : "detective");
   }
 
   function renderInspectionResults(container, sample, inspection) {
     const lang = OyenI18n.getLang();
     const isClean = inspection.allValid;
-
     container.innerHTML = `
       <div style="background:var(--cream-bg);border:1px solid var(--border-color);border-radius:var(--radius-md);padding:16px;animation:slideIn 0.2s ease;">
-        <div style="display:flex;align-items:center;gap:8px;font-weight:800;color:${isClean ? 'var(--color-success)' : 'var(--color-danger)'};margin-bottom:8px;">
-          <span>${isClean ? '✔' : '🔍'}</span>
-          <span>${isClean ? (lang === "ms" ? "Semua Baris Tepat!" : "All Steps Sound!") : (lang === "ms" ? "Laporan Detektif Oyen" : "Detective Oyen's Report")}</span>
+        <div class="ocr-q">📌 ${lang === "ms" ? sample.question : sample.questionEn}</div>
+        <div style="display:flex;align-items:center;gap:8px;font-weight:800;color:${isClean ? "var(--color-success)" : "var(--color-danger)"};margin-bottom:8px;">
+          <span>${isClean ? "✔" : "🔍"}</span><span>${isClean ? (lang === "ms" ? "Semua Baris Tepat!" : "All Steps Sound!") : (lang === "ms" ? "Laporan Detektif Oyen" : "Detective Oyen's Report")}</span>
         </div>
         <p style="font-size:13px;line-height:1.5;margin-bottom:12px;">${inspection.summary}</p>
-        
         <div style="display:flex;flex-direction:column;gap:6px;font-size:12px;">
-          ${sample.lines.map((line, i) => `
-            <div style="background:#fff;padding:8px 12px;border-radius:6px;border-left:3px solid ${line.valid !== false ? 'var(--color-success)' : 'var(--color-danger)'};">
+          ${sample.lines.map(line => `
+            <div style="background:#fff;padding:8px 12px;border-radius:6px;border-left:3px solid ${line.valid !== false ? "var(--color-success)" : "var(--color-danger)"};">
               <b>${line.text}</b>
               ${line.error ? `<div style="color:var(--color-danger);margin-top:4px;">⚠️ ${line.error}</div>` : ""}
               ${line.note ? `<div style="color:var(--color-success);margin-top:4px;">✨ ${line.note}</div>` : ""}
-            </div>
-          `).join("")}
+            </div>`).join("")}
         </div>
-
         <div style="margin-top:12px;padding-top:8px;border-top:1px dashed var(--border-color);font-size:12px;font-weight:700;color:var(--dark-orange);">
           🎯 ${lang === "ms" ? "Skema Jawapan Tepat" : "Target SPM Solution"}: ${sample.correctSolution}
         </div>
-      </div>
-    `;
-
+      </div>`;
     renderOyenSideAvatar(isClean ? "excited" : "detective");
-    if (isClean) {
-      OyenAudio.playSuccess();
-    } else {
-      OyenAudio.playWrong();
-    }
+    if (isClean) OyenAudio.playSuccess(); else OyenAudio.playWrong();
   }
 
   // ==========================================
@@ -819,6 +888,8 @@ const OyenApp = (() => {
       }
     }
 
+    if (event === "answer_evaluated" && !data.isCorrect) askCoach(state, data);
+
     if (event === "answer_format_error") {
       const fbContainer = document.getElementById("answerFeedbackContainer");
       if (fbContainer) {
@@ -940,6 +1011,8 @@ const OyenApp = (() => {
     init,
     switchView,
     scanAnswerSheet,
+    newDetectiveQuestion,
+    useCurrentQuestion,
     submitScanned,
     startChapter,
     submitAnswer,
