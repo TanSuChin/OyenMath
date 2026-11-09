@@ -235,6 +235,26 @@ test("Every detective sample states its question (BM + EN)", () => {
   });
 });
 
+// 13. Autonomous Mission API Client exports all lifecycle methods
+test("OyenAgentAPI exports full autonomous mission lifecycle methods", () => {
+  const API = require("../js/agent-client.js");
+  ["coach", "startMission", "listMissions", "getMission", "getMissionStatus", "pauseMission", "resumeMission", "cancelMission", "respondMission", "getMissionHistory"].forEach(fn => {
+    assert.strictEqual(typeof API[fn], "function", "OyenAgentAPI." + fn + " is a function");
+  });
+});
+
+// 14. Autonomous Mission Dashboard renders launcher and mission state
+test("OyenMissionDashboard renders bilingual launcher view", () => {
+  global.OyenI18n = OyenI18n;
+  global.OyenCharacter = OyenCharacter;
+  global.OyenCurriculum = OyenCurriculum;
+  const Dash = require("../js/mission-dashboard.js");
+  const container = { innerHTML: "", dataset: {} };
+  Dash.render(container);
+  assert.ok(container.innerHTML.includes("OyenMissionDashboard.launchMissionFromForm"), "Launcher button rendered");
+  assert.strictEqual(container.dataset.activeView, "autonomous");
+});
+
 console.log("==========================================");
 console.log(`🎉 ALL ${passedTests} TESTS PASSED SUCCESSFULLY!`);
 console.log("==========================================");

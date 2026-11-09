@@ -5,6 +5,7 @@ Without ANTHROPIC_API_KEY every node falls back to deterministic rules, so the g
 """
 import json
 import os
+import urllib.request
 from typing import Any, Callable, Dict, List, Optional, TypedDict
 
 from langgraph.graph import END, START, StateGraph
@@ -12,6 +13,7 @@ from langgraph.graph import END, START, StateGraph
 from .math_tools import TOOL_SPECS, run_tool
 
 MODEL = os.environ.get("ANTHROPIC_MODEL", "claude-sonnet-5-5")
+GROQ_MODEL = os.environ.get("GROQ_MODEL", "llama-3.3-70b-versatile")
 PERSONA = ("Kamu Oyen, kucing oren gemuk yang comel, ceria dan menyokong, rakan belajar pelajar SPM Matematik Tambahan Malaysia. "
            "Bercakap Bahasa Melayu mudah (atau English jika diminta), sedikit lawak, tidak pernah mengejek kesilapan. Jangan reka fakta matematik: "
            "gunakan alat untuk mengesahkan.")
@@ -26,7 +28,7 @@ class AgentState(TypedDict, total=False):
     trace: List[str]
 
 
-# ---------- LLM client (injectable for tests) ----------
+# ---------- LLM clients (Anthropic Claude & Groq OpenAI-compatible, injectable for tests) ----------
 class ClaudeClient:
     def __init__(self):
         import anthropic
@@ -45,8 +47,114 @@ class ClaudeClient:
         return ""
 
 
+class GroqClient:
+    """Zero-dependency Groq API client with OpenAI-compatible tool-calling support."""
+
+    def __init__(self, api_key: str, model: Optional[str] = None):
+        self.api_key = api_key.strip()
+        self.model = model or os.environ.get("GROQ_MODEL", GROQ_MODEL)
+
+    @staticmethod
+    def _to_openai_tools(tools: Optional[list]) -> list:
+        if not tools:
+            return []
+        out = []
+        for t in tools:
+            out.append({
+                "type": "function",
+                "function": {
+                    "name": t["name"],
+                    "description": t.get("description", ""),
+                    "parameters": t.get("input_schema", {"type": "object", "properties": {}}),
+                },
+            })
+        return out
+
+    def run(self, system: str, user: str, tools: Optional[list] = None, max_steps: int = 4) -> str:
+        msgs: List[Dict[str, Any]] = [
+            {"role": "system", "content": system},
+            {"role": "user", "content": user},
+        ]
+        oai_tools = self._to_openai_tools(tools)
+
+        for _ in range(max_steps):
+            body: Dict[str, Any] = {
+                "model": self.model,
+                "messages": msgs,
+                "max_tokens": 700,
+                "temperature": 0.3,
+            }
+            if oai_tools:
+                body["tools"] = oai_tools
+                body["tool_choice"] = "auto"
+
+            req = urllib.request.Request(
+                "https://api.groq.com/openai/v1/chat/completions",
+                data=json.dumps(body).encode("utf-8"),
+                headers={
+                    "Authorization": f"Bearer {self.api_key}",
+                    "Content-Type": "application/json",
+                    "User-Agent": "OyenMath-Agent/4.0",
+                },
+            )
+            with urllib.request.urlopen(req, timeout=30) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+
+            choice = (data.get("choices") or [{}])[0]
+            msg = choice.get("message") or {}
+            tool_calls = msg.get("tool_calls") or []
+            if not tool_calls:
+                return str(msg.get("content") or "")
+
+            msgs.append(msg)
+            for tc in tool_calls:
+                fn = tc.get("function") or {}
+                fn_name = fn.get("name", "")
+                try:
+                    fn_args = json.loads(fn.get("arguments") or "{}")
+                except Exception:
+                    fn_args = {}
+                result = run_tool(fn_name, fn_args if isinstance(fn_args, dict) else {})
+                msgs.append({
+                    "role": "tool",
+                    "tool_call_id": tc.get("id", "call_1"),
+                    "name": fn_name,
+                    "content": json.dumps(result),
+                })
+        return ""
+
+
+def _reload_env_keys() -> None:
+    """Dynamically read GROQ_API_KEY / ANTHROPIC_API_KEY from .env if not already set in os.environ."""
+    here = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    for path in (os.path.join(here, ".env"), os.path.join(os.path.dirname(here), ".env")):
+        if os.path.exists(path):
+            try:
+                with open(path, encoding="utf-8") as f:
+                    for line in f:
+                        if "=" in line and not line.strip().startswith("#"):
+                            k, v = line.strip().split("=", 1)
+                            k = k.strip()
+                            val = v.strip().strip('"').strip("'")
+                            if k in ("GROQ_API_KEY", "GROQ_MODEL", "ANTHROPIC_API_KEY", "ANTHROPIC_MODEL"):
+                                if val and not val.startswith("your-"):
+                                    os.environ[k] = val
+            except Exception:
+                pass
+
+
 def default_client():
-    return ClaudeClient() if os.environ.get("ANTHROPIC_API_KEY") else None
+    _reload_env_keys()
+    groq_key = os.environ.get("GROQ_API_KEY", "").strip()
+    anth_key = os.environ.get("ANTHROPIC_API_KEY", "").strip()
+    if groq_key and not groq_key.startswith("your-"):
+        return GroqClient(groq_key)
+    if anth_key.startswith("gsk_"):
+        # User pasted a Groq gsk_... key into ANTHROPIC_API_KEY
+        return GroqClient(anth_key)
+    if anth_key and not anth_key.startswith("your-"):
+        return ClaudeClient()
+    return None
 
 
 def _json(text: str) -> Optional[dict]:
@@ -157,3 +265,125 @@ def run_agent(payload: dict, llm="auto") -> dict:
     out = graph.invoke({"payload": payload, "trace": []})
     return {"diagnosis": out["diagnosis"], "action": out["action"], "next_topic": out.get("next_topic"),
             "message": out["message"], "trace": out["trace"], "llm": bool(client)}
+
+
+# =====================================================================
+# Milestone M3: Stateful 12-Node Autonomous Mission Graph
+# =====================================================================
+
+def build_autonomous_mission_graph(checkpointer=None, llm=None):
+    """
+    Construct and compile the stateful 12-Node Autonomous LangGraph workflow.
+
+    Workflow topology:
+    START -> goal_understanding -> profile_retrieval -> diagnostic -> learning_plan -> orchestrator
+          -> {teaching | challenge | prerequisite} -> student_interaction (LangGraph interrupt)
+          -> evaluation -> solver_verification (SymPy gate) -> state_updater -> progress_evaluator
+          -> {replan -> learning_plan | continue -> orchestrator | wait -> student_interaction | complete/terminate -> END}
+
+    Args:
+        checkpointer: Persistent checkpoint saver (e.g. OyenLangGraphCheckpointer)
+        llm: Optional LLM client with .run() method
+
+    Returns:
+        CompiledStateGraph ready for invoke() and Command(resume=...)
+    """
+    from .nodes import (
+        goal_understanding_node,
+        profile_retrieval_node,
+        diagnostic_node,
+        learning_plan_node,
+        orchestrator_node,
+        route_orchestrator,
+        teaching_node,
+        challenge_node,
+        prerequisite_node,
+        student_interaction_node,
+        evaluation_node,
+        solver_verification_node,
+        state_updater_node,
+        progress_evaluator_node,
+        route_progress_evaluation,
+    )
+    from .state import MissionState
+
+    builder = StateGraph(MissionState)
+
+    # 1. Register all 13 specialized agent nodes
+    if llm is not None:
+        builder.add_node("goal_understanding", goal_understanding_node)
+        builder.add_node("profile_retrieval", profile_retrieval_node)
+        builder.add_node("diagnostic", lambda s: diagnostic_node(s, llm=llm))
+        builder.add_node("learning_plan", learning_plan_node)
+        builder.add_node("orchestrator", orchestrator_node)
+        builder.add_node("teaching", lambda s: teaching_node(s, llm=llm))
+        builder.add_node("challenge", lambda s: challenge_node(s, llm=llm))
+        builder.add_node("prerequisite", lambda s: prerequisite_node(s, llm=llm))
+        builder.add_node("student_interaction", student_interaction_node)
+        builder.add_node("evaluation", lambda s: evaluation_node(s, llm=llm))
+        builder.add_node("solver_verification", solver_verification_node)
+        builder.add_node("state_updater", state_updater_node)
+        builder.add_node("progress_evaluator", progress_evaluator_node)
+    else:
+        builder.add_node("goal_understanding", goal_understanding_node)
+        builder.add_node("profile_retrieval", profile_retrieval_node)
+        builder.add_node("diagnostic", diagnostic_node)
+        builder.add_node("learning_plan", learning_plan_node)
+        builder.add_node("orchestrator", orchestrator_node)
+        builder.add_node("teaching", teaching_node)
+        builder.add_node("challenge", challenge_node)
+        builder.add_node("prerequisite", prerequisite_node)
+        builder.add_node("student_interaction", student_interaction_node)
+        builder.add_node("evaluation", evaluation_node)
+        builder.add_node("solver_verification", solver_verification_node)
+        builder.add_node("state_updater", state_updater_node)
+        builder.add_node("progress_evaluator", progress_evaluator_node)
+
+    # 2. Linear preparation pipeline
+    builder.add_edge(START, "goal_understanding")
+    builder.add_edge("goal_understanding", "profile_retrieval")
+    builder.add_edge("profile_retrieval", "diagnostic")
+    builder.add_edge("diagnostic", "learning_plan")
+    builder.add_edge("learning_plan", "orchestrator")
+
+    # 3. Autonomous orchestrator routing
+    builder.add_conditional_edges(
+        "orchestrator",
+        route_orchestrator,
+        {
+            "teaching": "teaching",
+            "teach": "teaching",
+            "challenge": "challenge",
+            "prerequisite": "prerequisite",
+            "prerequisite_intervention": "prerequisite",
+        },
+    )
+
+    # 4. Instruction / Challenge converge to student interaction gate
+    builder.add_edge("teaching", "student_interaction")
+    builder.add_edge("challenge", "student_interaction")
+    builder.add_edge("prerequisite", "student_interaction")
+
+    # 5. Post-interaction evaluation, SymPy verification, and state update
+    builder.add_edge("student_interaction", "evaluation")
+    builder.add_edge("evaluation", "solver_verification")
+    builder.add_edge("solver_verification", "state_updater")
+    builder.add_edge("state_updater", "progress_evaluator")
+
+    # 6. Autonomous progress evaluation and conditional replan / continue / finish loop
+    builder.add_conditional_edges(
+        "progress_evaluator",
+        route_progress_evaluation,
+        {
+            "replan": "learning_plan",
+            "continue": "orchestrator",
+            "wait": "student_interaction",
+            "complete": END,
+            "terminate": END,
+        },
+    )
+
+    if checkpointer is not None:
+        return builder.compile(checkpointer=checkpointer)
+    return builder.compile()
+

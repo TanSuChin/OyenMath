@@ -57,6 +57,14 @@ const OyenApp = (() => {
     switchView("adventure");
     renderOyenSideAvatar("happy");
 
+    // Restore any active autonomous mission checkpoint in background
+    if (typeof OyenMissionDashboard !== "undefined" && OyenMissionDashboard.restoreActiveMission) {
+      OyenMissionDashboard.restoreActiveMission().then(() => {
+        renderMasteryBars();
+        renderAgentTraceLog();
+      });
+    }
+
     // Welcome greeting
     graph.logDecision("O", "Selamat datang ke Oyen Math! Sistem bersedia membimbing anda dalam Matematik Tambahan SPM.");
   }
@@ -249,6 +257,11 @@ const OyenApp = (() => {
     if (viewName === "adventure") {
       renderAdventureMap(stage);
       renderOyenSideAvatar("happy");
+    } else if (viewName === "autonomous") {
+      if (typeof OyenMissionDashboard !== "undefined") {
+        OyenMissionDashboard.render(stage);
+      }
+      renderOyenSideAvatar("excited");
     } else if (viewName === "learning") {
       // In learning view, if no active question, start current topic
       if (!graph.state.currentQuestion) {

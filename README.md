@@ -1,208 +1,144 @@
-# 🐱 Oyen Math
+# 🐱 Oyen Math (v4 — Autonomous Agentic AI Learning Platform)
 
 > **"Learn. Play. Level Up!"**  
-> *An Agentic AI-Powered Gamified Personalized Learning Platform for SPM Additional Mathematics.*
+> *An Autonomous Agentic AI-Powered Gamified Personalized Learning Platform for Malaysian SPM Additional Mathematics.*
 
 [![SPM AddMath](https://img.shields.io/badge/SPM-Additional%20Mathematics-FF8C24.svg)](https://github.com/TanSuChin/OyenMath)
 [![Character](https://img.shields.io/badge/Mascot-Oyen%20the%20Orange%20Cat-F06A16.svg)](https://github.com/TanSuChin/OyenMath)
-[![LangGraph](https://img.shields.io/badge/Architecture-LangGraph%20Multi--Agent-0E7490.svg)](https://github.com/TanSuChin/OyenMath)
+[![LangGraph](https://img.shields.io/badge/Architecture-12--Node%20Autonomous%20LangGraph-0E7490.svg)](https://github.com/TanSuChin/OyenMath)
+[![SymPy](https://img.shields.io/badge/Verification-Authoritative%20SymPy%20Engine-16A34A.svg)](https://www.sympy.org)
 [![Firebase](https://img.shields.io/badge/Cloud-Firebase%20Auth%20%26%20Firestore-F59E0B.svg)](https://firebase.google.com)
 
 ---
 
 ## 🌟 1. System Identity & Overview
 
-**Oyen Math** transforms the traditional struggle of Malaysian SPM Additional Mathematics into a heartwarming, hilarious, and intellectually stimulating adventure. Instead of sterile spreadsheets and dry textbooks, students embark on an educational quest alongside **Oyen**—an adorable, determined orange tabby cat who dreams of overcoming hardship and building a better future for his family through the power of mathematics.
+**Oyen Math** transforms the traditional struggle of Malaysian SPM Additional Mathematics into a heartwarming, hilarious, and intellectually rigorous autonomous learning adventure. Students embark on a goal-directed quest alongside **Oyen**—an adorable, determined orange tabby cat who dreams of overcoming hardship and building a better future for his family through the power of mathematics.
 
-### Brand Personality:
-- **Playful & Curious:** Cat behavior, chasing butterflies, funny food distractions.
-- **Intelligent & Rigorous:** Deep conceptual grounding in Form 5 SPM Additional Mathematics (Differentiation & Integration).
-- **Encouraging & Warm:** Supportive feedback that lifts students up without ever mocking mistakes.
-- **Malaysian Teen Culture & Gen Z Humor:** Relatable SPM references, Cikgu advice, and memes ("Brain.exe has stopped working", "LOCK IN! 🐈", "Where did that negative sign wander off to? 💀").
-
----
-
-## 🐾 2. The Mascot: Oyen the Orange Cat
-
-Oyen is a small orange tabby cat with bright orange fur (`#FF8C24`), darker orange stripes (`#B84206`), large expressive sparkling eyes, a cream muzzle and belly (`#FFF0DF`), a pink nose, and a fluffy tail.
-
-### The 8 Signature Expressions & Poses
-1. **Happy Oyen (`happy`):** Celebrating correct answers with paws held high in victory, sparkling stars, and a joyful smile.
-2. **Sad Oyen (`sad`):** Reacting to incorrect answers with drooping ears, glossy watery eyes, and a reassuring hug.
-3. **Thinking Oyen (`thinking`):** Solving difficult problems with one paw on his chin, looking upward with floating math symbols ($\frac{dy}{dx}, \int f(x), x^2, +C$).
-4. **Confused Oyen (`confused`):** Funny reaction to complex questions with a tilted head, swirl marks, sweatdrop, and "Brain.exe has stopped working" expression.
-5. **Excited Oyen (`excited`):** Celebrating completed chapters and milestones, jumping with confetti and holding a golden salmon trophy.
-6. **Determined Oyen (`determined`):** Wearing a red SPM A+ headband with a paw emblem, clenching fists, and firing up students: *"One more correct answer and Oyen gets his heart back. LOCK IN! 🐈"*.
-7. **Sleeping Oyen (`sleeping`):** Curled up peacefully on a soft cream cushion with floating "Zzz" during resting/loading screens.
-8. **Detective Oyen (`detective`):** Wearing a deerstalker detective cap and wielding a magnifying glass to inspect uploaded handwritten calculation steps line by line.
+### Five Essential Autonomous Agentic Properties Implemented:
+| Property | Implemented Capability | Evidence in Repository |
+| :--- | :--- | :--- |
+| **Goal-Directed Behaviour** | Establishes measurable mastery objectives (`target_mastery`, `goal_type`, execution budgets) and tracks progress until achievement or safe termination. | `agents/nodes/goal_understanding.py`, `agents/state.py` (`MissionGoal`) |
+| **Autonomous Planning** | Generates and dynamically adjusts a multi-activity learning roadmap without requiring manual activity-by-activity navigation. | `agents/nodes/learning_plan.py`, `agents/nodes/orchestrator.py` |
+| **Controlled Tool Utilisation** | Selects and invokes Pydantic-validated mathematical, diagnostic, curriculum, and planning tools with strict sandboxing and 5s timeouts. | `agents/math_tools.py`, `agents/schemas.py` (`TOOL_SPECS`, `run_tool`) |
+| **Feedback, Verification & Reflection** | Evaluates student responses, verifies mathematical equivalence deterministically via SymPy, tags misconceptions (`forgot_c`, `wrong_power`, `sign_error`), and triggers prerequisite interventions or simpler explanations. | `agents/verification.py`, `agents/nodes/solver_verification.py`, `agents/nodes/state_updater.py`, `agents/nodes/progress_evaluator.py` |
+| **Autonomous Execution & Persistence** | Executes multi-step decision loops in background worker threads with persistent atomic checkpoints, `WAITING_FOR_STUDENT` interrupts, pause/resume/cancel controls, and strict step/tool/duration budgets. | `agents/mission_runner.py`, `agents/checkpoint.py`, `server.py` |
 
 ---
 
-## 📖 3. Storyline: Oyen's Journey
+## 🧠 2. Architecture: Before vs. After Transformation
 
-### Level 1: Differentiation — *"A Little Cat with Big Dreams"*
-Oyen is a young orange cat growing up in a humble, financially struggling family in Malaysia. He attends school in worn-out sneakers and a patched school bag, determined to improve his family's circumstances. In Additional Mathematics class, he encounters **Differentiation**. Through mathematical challenges, Oyen learns about rates of change, tangents, gradients, and maximum/minimum values—realizing that small consistent changes every day compound into life-changing progress.
+### A. Legacy Architecture (v3 — Synchronous 5-Node Request-Response Pipeline)
+Previously, `POST /api/agent` executed a single-turn acyclic pass (`START -> diagnostic -> orchestrator -> {prerequisite | teaching | challenge} -> END`) only when triggered by a browser click, with no persistent mission state, no background execution, and no multi-cycle replanning:
 
-### Level 2: Integration — *"Putting the Pieces Together"*
-*Direct continuation from Level 1.* Having conquered Differentiation, Oyen gains confidence and wins a school mathematics award. He sets his sights on designing a warm family shelter complete with a freshwater fish pond. However, calculating accumulated tile quantities, curved walls, and pool surface areas requires summing infinitesimal parts together. He discovers **Integration**—the reverse of differentiation!
+```mermaid
+flowchart LR
+    A[Browser Click] -->|POST /api/agent| B[Diagnostic Node]
+    B --> C[Orchestrator Node]
+    C --> D[Prerequisite Node]
+    C --> E[Teaching Node]
+    C --> F[Challenge Node]
+    D --> G([END])
+    E --> G
+    F --> G
+```
 
-### Prerequisite Interventions:
-- **Chapter 0A: Laws of Indices (`ind`)** — Essential foundation for handling fractional and negative powers before differentiation.
-- **Chapter 0B: Quadratic Functions (`quad`)** — Mastering axis of symmetry, parabolas, and vertices to model architectural roof structures.
-
----
-
-## 🧠 4. Agentic AI Architecture (LangGraph Multi-Agent System)
-
-Oyen Math coordinates specialized AI agents within a stateful LangGraph directed acyclic graph:
+### B. New Autonomous Architecture (v4 — 12-Node Stateful LangGraph with Persistent Checkpointing & Native `interrupt()`)
+Oyen Math v4 implements a persistent 12-node stateful `StateGraph(MissionState)` in `agents/graph.py` (`build_autonomous_mission_graph`) coordinated by `MissionRunner` (`agents/mission_runner.py`):
 
 ```mermaid
 flowchart TD
-    Start([Student Starts Session]) --> Orchestrator[Learning Orchestrator]
-    Orchestrator --> DiagCheck{Prior History?}
-    DiagCheck -- No --> DiagAgent[Diagnostic Agent]
-    DiagAgent --> MisconceptionAnalysis[Error Pattern Analyzer]
-    MisconceptionAnalysis --> PrereqRouter{Prerequisite Gap?}
-    PrereqRouter -- Yes --> PrereqIntervention[Index / Quadratic Intervention]
-    PrereqRouter -- No --> TeachingAgent[Teaching Agent]
-    
-    TeachingAgent --> MultimodalInstruction[4 Teaching Modes:\n1. Concept Text\n2. Worked Example\n3. SVG Graph Plotter\n4. Cat Analogy]
-    MultimodalInstruction --> ChallengeAgent[Challenge Agent]
-    ChallengeAgent --> DynamicMissions[Generate Oyen Mission Challenges]
-    DynamicMissions --> MathSolver[Math Solver Engine]
-    MathSolver --> EvaluationAgent[Evaluation Agent]
-    
-    EvaluationAgent --> HeartCheck{Correct Answer?}
-    HeartCheck -- Yes --> RewardNode[+XP, +Fish Coins, Update Mastery]
-    HeartCheck -- No --> HeartDeduct[-1 Heart, Error Feedback]
-    
-    HeartDeduct --> ZeroHearts{Hearts <= 0?}
-    ZeroHearts -- Yes --> RecoveryZone[Heart Recovery Zone: 'LOCK IN! 🐈']
-    ZeroHearts -- No --> ChallengeAgent
-    
-    RecoveryZone --> RecoveryExercise[Solve 1 Micro-Problem]
-    RecoveryExercise -- Correct --> RestoreHeart[Restore Heart & Return]
-    
-    RewardNode --> SessionEvaluation[Post-Round Session Evaluation]
-    SessionEvaluation --> NextChapter[Advance Adventure Map]
+    A[Student Starts Autonomous Mission] --> B[1. Goal Understanding Agent]
+    B --> C[2. Student Profile & History Retrieval]
+    C --> D[3. Diagnostic Agent]
+    D --> E[4. Learning Plan Generator]
+    E --> F[5. Orchestrator Selects Next Action]
+    F -->|teach| G[6. Teaching Agent]
+    F -->|challenge| H[7. Challenge Agent]
+    F -->|prerequisite| I[8. Prerequisite Intervention]
+    G --> J[9. Student Interaction Gate\nWAITING_FOR_STUDENT / LangGraph interrupt]
+    H --> J
+    I --> J
+    J -->|Student Responds via Command resume| K[10. Evaluation Agent]
+    K --> L[11. Authoritative SymPy Solver Verification]
+    L --> M[12a. Update Verified Learning State]
+    M --> N[12b. Autonomous Progress Evaluator]
+    N -->|replan: Repeated Errors / Prereq Gap| E
+    N -->|continue: Next Planned Activity| F
+    N -->|wait: Awaiting Input| J
+    N -->|complete: Verified Mastery >= Target| R([Mission Completed])
+    N -->|terminate: Budget Exhausted / Cancelled| S([Safe Termination])
 ```
 
-### Agent Roles:
-1. **Learning Orchestrator (`OyenOrchestrator`):** Monitors learning fatigue, routes questions, triggers prerequisite interventions, and adjusts session flow.
-2. **Diagnostic Agent (`OyenDiagnosticAgent`):** Screen concept readiness and identifies algebraic/calculus misconceptions.
-3. **Teaching Agent (`OyenTeachingAgent`):** Delivers multimodal instruction across text, step-by-step examples, SVG graph plots with tangents/areas, and cat analogies.
-4. **Challenge Agent (`OyenChallengeAgent`):** Presents questions framed as Oyen's missions with adaptive difficulty (Levels 1, 2, 3).
-5. **Evaluation Agent (`OyenEvaluationAgent`):** Validates symbolic/numerical equivalence and powers the **Detective Oyen Working Inspector**.
-6. **Math Solver Tool (`OyenMathEngine`):** Fast, non-hallucinating numerical multi-point evaluator supporting polynomials, fractions, and indefinite integrals ($+ C$).
+*(Note: The legacy `run_agent(payload)` pipeline and `POST /api/agent` endpoint remain 100% intact for backward compatibility with interactive map tutoring.)*
 
 ---
 
-## 🔍 5. Detective Oyen: Handwritten Calculation Inspector
+## 🔒 3. Authoritative Deterministic Math Verification & Security Hardening
 
-Students can upload a photo of their notebook work, draw on an interactive canvas, or test curated SPM scenarios. Detective Oyen scans each line of derivation to catch common traps:
-- **Differentiating constants into non-zero constants** (e.g. $9 \rightarrow 9$ instead of $0$).
-- **Dropping exponents** without subtracting 1 ($4x^3 \rightarrow 12x^3$).
-- **Omitting the constant of integration $+ C$** in indefinite integrals.
-- **Arithmetic slips** in multi-step chains.
-
----
-
-## 🎮 6. Gamification System
-
-- **Hearts System (5 Max):** Mistake penalties with low-heart alerts.
-- **Heart Recovery Zone:** Micro-exercises where every correct answer restores 1 heart.
-- **Normal Points (XP) & Recovery Points:** Rewarded for accuracy and perseverance.
-- **Fish Coins (`🐟`):** Collectible currency earned for perfect streaks.
-- **Interactive Adventure Map:** Cat paw-prints connecting milestone nodes.
-- **Malaysian Leaderboard:** Live ranking alongside fellow SPM candidates.
-- **Cat Badges & Achievements:** Unlockable trophies celebrating mathematical mastery.
+In `agents/verification.py`, `agents/math_tools.py`, and `agents/schemas.py`:
+- **SymPy as Sole Authority:** `calculate_verified_mastery()` only increases student mastery when `VerificationResult.is_correct` is deterministically verified by SymPy (`verified_by="sympy"`). Unverified LLM confidence can **never** increase mastery.
+- **RCE Elimination & Safe AST Parsing:** Replaced unsafe `sp.sympify()` calls on definite integral bounds with strict regex and token-whitelisted parsing (`parse_bound`, `parse`).
+- **Expanded SPM Variable Whitelist:** Supports standard SPM Additional Mathematics variables and constants ($x, y, t, u, v, r, h, k, \theta, \pi, e$) plus rate-of-change differentials ($dx, dy, dt$).
+- **Explicit Indefinite Integral $+ C$ Verification:** Detects missing constants of integration (`forgot_c`) instead of blindly stripping $+ C$.
+- **5-Second Execution Timeout Sandbox:** Prevents catastrophic polynomial/calculus expressions from hanging worker threads.
 
 ---
 
-## 🎨 7. Brand Colors & UI Guidelines
+## 🌐 4. Autonomous Mission REST API & Ownership Security (`server.py` & `agents/auth.py`)
 
-| Color Name | Hex Code | Purpose |
-| :--- | :--- | :--- |
-| **Primary Orange** | `#FF8C24` | Main brand elements, active buttons, graph lines |
-| **Dark Orange** | `#F06A16` | Headers, active titles, borders, high-contrast accents |
-| **Light Orange** | `#FFF0DF` | Card backgrounds, pill badges, subtle highlights |
-| **Cream Background** | `#FFF9F2` | Warm paper-like canvas background |
-| **Dark Text** | `#30251F` | High-readability typography |
-| **Pure White** | `#FFFFFF` | Cards, modals, scratchpad canvas |
+`server.py` runs on `ThreadingHTTPServer` (`socketserver.ThreadingMixIn`) and exposes:
+
+| Method & Endpoint | Purpose |
+| :--- | :--- |
+| `POST /api/missions/start` | Create and start a new autonomous learning mission (supports `idempotency_key` and `background` mode). |
+| `GET  /api/missions` | List missions owned by the authenticated student. |
+| `GET  /api/missions/{mission_id}` | Retrieve full `MissionState` and `progress_summary`. |
+| `GET  /api/missions/{mission_id}/status` | Retrieve live mission status, active agent, current activity, trace, and budget usage. |
+| `POST /api/missions/{mission_id}/pause` | Pause an active mission. |
+| `POST /api/missions/{mission_id}/resume` | Resume a paused mission from its latest valid checkpoint. |
+| `POST /api/missions/{mission_id}/cancel` | Cancel and safely terminate a mission (`CANCELLED`). |
+| `POST /api/missions/{mission_id}/respond` | Submit a student answer (`{"answer": "..."}`), resuming the LangGraph `interrupt()` through SymPy verification, state update, and autonomous replanning. |
+| `GET  /api/missions/{mission_id}/history` | Retrieve completed activities, learning history, verified mastery progression, and misconceptions. |
+| `POST /api/agent` | Legacy synchronous single-turn coaching endpoint (preserved for backward compatibility). |
+| `POST /api/ocr` | Detective Oyen handwritten working OCR endpoint (Claude Vision). |
+
+### Authentication & Student Ownership Isolation (`agents/auth.py`):
+- **Firebase Cloud Mode (`FIREBASE_PROJECT_ID` or `js/firebase-config.js` configured):** Requires `Authorization: Bearer <Firebase ID Token>`. Validates token signature, expiration (`exp`), audience (`aud`), and issuer (`iss`), extracting `student_id` directly from the verified token claims. Missing/invalid tokens return `401 Unauthorized`.
+- **Offline Development Mode (`dev-local`):** When Firebase is not configured, uses a clearly labelled `Offline Dev Mode (dev-local)` identity (or `X-Oyen-Dev-Student` header for local multi-student isolation tests) and never trusts `student_id` in the JSON request body.
+- **Cross-Student Isolation:** Any attempt by Student B to view, pause, resume, respond to, or cancel Student A's mission returns `403 Forbidden`.
 
 ---
 
-## 🌐 8. Language Toggle (Bilingual SPM Support)
+## 🖥️ 5. Autonomous Mission Dashboard (`🤖 Misi Autonomi AI`)
 
-Full real-time toggle between **Bahasa Melayu (BM)** and **English (EN)** for Malaysian students under the Dual Language Programme (DLP):
-- Story narratives
-- Math questions & formulas
-- Agent dialogue & thinking traces
-- Inspector tips & feedback
+Integrated into `index.html` via `js/mission-dashboard.js`:
+1. **Mission Overview:** Objective description, target SPM topic (`dif`, `integ`, `ind`, `quad`), live status badge (`RUNNING`, `WAITING_FOR_STUDENT`, `PAUSED`, `COMPLETED`, `CANCELLED`, `BUDGET_EXHAUSTED`), identity mode badge, and progress bar toward target mastery.
+2. **Mission Controls:** Start, Pause, Resume, Stop/Cancel, Refresh, and New Mission controls.
+3. **Interactive Student Participation Workspace:** Clearly distinguishes active agent execution from `WAITING_FOR_STUDENT`, displaying Oyen's guided teaching steps, challenge questions, and deterministic SymPy verification feedback.
+4. **Generated Learning Plan Roadmap:** Displays Completed (`✅`), Current (`▶️`), and Upcoming (`⏳`) activities.
+5. **AI Activity Monitor & Learning Results:** Live LangGraph decision trace, Initial vs. Verified Mastery, Identified Misconceptions, Completed/Answered counts, and Agent Step / Tool Call budget usage.
 
 ---
 
-## 🚀 9. Quick Start Guide
+## 🚀 6. Quick Start & Running Tests
 
-### Direct Browser Usage:
-Simply open `index.html` in any modern web browser:
 ```bash
-# On Windows PowerShell
-Start-Process index.html
-```
+# 1. Install dependencies
+pip install -r requirements.txt
 
-### Local Development Server (Python / Node):
-```bash
-# Python 3
-python -m http.server 8080
+# 2. Start the threaded server on http://localhost:8080
+python server.py
 
-# Or with Node
-npx serve .
-```
-Navigate to `http://localhost:8080` in your browser.
+# 3. Run the automated Python test suite (269 tests)
+python -m unittest discover -s tests -p "test_*.py"
 
----
-
-## ☁️ 10. Firebase Integration
-
-Oyen Math includes an offline-first architecture. If running without cloud credentials, it utilizes a local Firestore emulator backed by `localStorage`.
-
-To connect live Firebase:
-1. Create a Firebase project at [console.firebase.google.com](https://console.firebase.google.com).
-2. Enable **Authentication** (Email/Password & Anonymous).
-3. Enable **Cloud Firestore**.
-4. Define `window.firebaseConfig` in `index.html` or through your environment:
-```javascript
-window.firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT.firebaseapp.com",
-  projectId: "YOUR_PROJECT",
-  storageBucket: "YOUR_PROJECT.appspot.com",
-  messagingSenderId: "SENDER_ID",
-  appId: "APP_ID"
-};
+# 4. Run the JavaScript test suite (12 tests)
+node tests/test-suite.js
 ```
 
 ---
 
-## 🐾 License
-
-Oyen Math is created for Malaysian SPM students and educators.  
-**"Learn. Play. Level Up!"** 🐱🧡
-
----
-
-## 🆕 v2 update: fun layer, chubby Oyen, real OCR
-
-- **Home:** zig-zag column of topic circles; tap one and its sub-topic circles pop out below (`js/home-map.js`). Integration unlocks after 40% Differentiation mastery.
-- **Chubby Oyen:** new round orange tabby with blink, breathing and tail-wag animation (`js/oyen-fat.js`), used for all 8 poses.
-- **Animated story:** each topic opens with a short animated chapter (`js/story.js`); replay with the 🎬 circle.
-- **Answer-sheet OCR:** "📷 Scan Answer Sheet" in every question, plus the Detective tab. The photo goes to `POST /api/ocr` (Claude vision, needs `ANTHROPIC_API_KEY` in `.env`, see `.env.example`). Without a key it falls back to in-browser Tesseract.js (weak on handwriting). The student confirms the read answer, then the deterministic Math Solver marks it through the agent graph.
-- Run: `python3 server.py` (or `PORT=9000 python3 server.py`).
-
-## v3: LLM agents, linked detective, prerequisite-first map
-
-- **Real LangGraph** (`agents/graph.py`): diagnostic (Claude + SymPy tool-calling) -> orchestrator -> prerequisite/teaching/challenge. Falls back to rules without an API key. Served at `POST /api/agent`.
-- **Detective Oyen** now links every upload to one explicit question (current / generated / SPM sample) and verifies the final answer against it.
-- **Map order:** P1 Indices, P2 Quadratics, then Level 1 Differentiation (needs 40% in both) and Level 2 Integration (needs 40% in Differentiation). New students start at 0%.
-- **Firebase:** config in `js/firebase-config.js`, rules in `firestore.rules`, real Firestore leaderboard. See `SETUP.md`.
+## ⚠️ 7. Remaining Limitations & Optional External Configuration
+- **Anthropic API Key Optional:** Without `ANTHROPIC_API_KEY` in `.env`, all 12 autonomous LangGraph nodes and `/api/agent` execute in deterministic rule-based mode, and handwritten OCR falls back to in-browser Tesseract.js instead of Claude Vision.
+- **Firebase Cloud Mode Optional:** Live cloud sync and Firebase ID token verification require configuring a Firebase project in `js/firebase-config.js` and `FIREBASE_PROJECT_ID` in `.env`. Without it, checkpoints persist atomically on local disk under `.oyen_data/missions/{student_id}/{mission_id}.json`.
